@@ -48,39 +48,15 @@ export function setupPythonRunner() {
     try {
       const pyodide = window.pyodide;
 
-      // 커스텀 input() 함수 정의 - JavaScript와 상호작용
+      // 커스텀 input() 함수 정의 - 팝업 사용
       const customInputFunc = `
-import asyncio
-
-_input_buffer = []
-
 def input(prompt=''):
-    if prompt:
-        print(prompt, end='', flush=True)
-    
-    # JavaScript에서 입력값이 들어올 때까지 대기
-    # 동기적으로 처리하기 위해 전역 변수 사용
     import js
-    js.window._input_waiting = True
-    js.window.document.getElementById("input-container").style.display = "block"
-    input_field = js.window.document.getElementById("python-input")
-    input_field.value = ""
-    input_field.focus()
-    
-    # 입력 대기 (busy-wait, 하지만 짧은 시간)
-    max_wait = 500  # 5초 제한
-    wait_count = 0
-    while len(js.window._python_input_queue) == 0 and wait_count < max_wait:
-        import time
-        time.sleep(0.01)
-        wait_count += 1
-    
-    if len(js.window._python_input_queue) > 0:
-        user_input = str(js.window._python_input_queue.pop(0))
-        print(user_input, flush=True)
-        return user_input
-    else:
+    # 팝업으로 입력받기 (안내 메시지 포함)
+    user_input = js.prompt(prompt)
+    if user_input is None:
         return ""
+    return user_input
 `;
 
       // 사용자 코드 이스케이프
