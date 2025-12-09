@@ -215,6 +215,66 @@ body{
 }
 .send-btn:disabled{ opacity:.6; cursor: default; }
 
+.run-btn{
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  color: #1f2937;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: .9rem;
+  transition: all 0.2s;
+}
+.run-btn:hover:not(:disabled){
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+.run-btn:disabled{
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 출력 패널 */
+.output-panel{
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid #dbeafe;
+  background: linear-gradient(135deg, #f0f9ff, #fffbeb);
+}
+
+.output-log{
+  background: #ffffffdd;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: .9rem;
+  line-height: 1.5;
+  max-height: 300px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 60px;
+}
+
+.output-text{
+  color: #1f2937;
+}
+
+.output-info{
+  color: #6b7280;
+  font-style: italic;
+}
+
+.output-error{
+  color: #dc2626;
+  background: #fee2e2;
+  padding: 8px;
+  border-radius: 8px;
+  border-left: 3px solid #dc2626;
+}
+
 /* 반응형 */
 @media (max-width: 980px){
   .lab-grid{ grid-template-columns: 1fr; }

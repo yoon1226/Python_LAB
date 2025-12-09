@@ -29,8 +29,23 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { indentOnInput, bracketMatching } from "@codemirror/language";
 
 let editorView = null;
+let pyodideReady = false;
 
 const app = document.getElementById("app");
+
+// Pyodide 초기화
+initPyodide();
+
+async function initPyodide() {
+  try {
+    let pyodide = await loadPyodide();
+    window.pyodide = pyodide;
+    pyodideReady = true;
+  } catch (err) {
+    console.error("Pyodide 로드 실패:", err);
+    pyodideReady = false;
+  }
+}
 
 init();
 
@@ -97,6 +112,10 @@ function renderLab(student) {
               <span class="panel-hint">문법 하이라이트 · 자동 들여쓰기 지원</span>
             </div>
             <div id="cm-host"></div>
+            <div style="margin-top: 10px; display: flex; gap: 8px;">
+              <button id="run-code-btn" class="run-btn" title="Python 코드 실행">▶️ 실행</button>
+              <button id="clear-output-btn" class="run-btn" title="결과 초기화">🗑️ 초기화</button>
+            </div>
           </div>
 
           <!-- Chat -->
@@ -115,6 +134,15 @@ function renderLab(student) {
             </div>
           </div>
         </div>
+
+        <!-- Output Panel -->
+        <div class="output-panel" style="margin-top: 14px;">
+          <div class="panel-title">
+            <h3>📊 실행 결과</h3>
+            <span class="panel-hint" id="output-status">코드 실행 후 결과가 표시됩니다</span>
+          </div>
+          <div id="output-log" class="output-log"></div>
+        </div>
       </section>
     </div>
   `;
@@ -125,6 +153,7 @@ function renderLab(student) {
   };
 
   setupEditor();
+  setupPythonRunner();
   setupChat(student);
 }
 
@@ -166,6 +195,152 @@ if __name__ == "__main__":
     state,
     parent: host,
   });
+}
+
+// ------------------ Python Runner ------------------
+// ...existing code...
+
+function setupPythonRunner() {
+  const runBtn = document.getElementById("run-code-btn");
+  const clearBtn = document.getElementById("clear-output-btn");
+  const outputLog = document.getElementById("output-log");
+  const outputStatus = document.getElementById("output-status");
+
+  runBtn.addEventListener("click", async () => {
+    if (!pyodideReady) {
+      outputLog.innerHTML = '<div class="output-error">Pyodide가 아직 로드 중입니다. 잠시 후 다시 시도해 주세요.</div>';
+      return;
+    }
+
+    const code = editorView?.state.doc.toString() ?? "";
+    if (!code.trim()) {
+      outputLog.innerHTML = '<div class="output-error">코드를 입력해 주세요.</div>';
+      return;
+    }
+
+    runBtn.disabled = true;
+    outputLog.innerHTML = '<div class="output-info">코드 실행 중...</div>';
+    outputStatus.textContent = '실행 중...';
+
+    try {
+      const pyodide = window.pyodide;
+      
+      // 사용자 코드를 exec() 형태로 실행하고 표준 출력 캡처
+      const result = pyodide.runPython(`
+import sys
+from io import StringIO
+
+_old_stdout = sys.stdout
+sys.stdout = StringIO()
+
+try:
+    exec("""${code.replace(/"""/g, '\\"\\"\\"')}""")
+    _result = sys.stdout.getvalue()
+except Exception as e:
+    _result = f"오류 발생:\\n{type(e).__name__}: {e}"
+finally:
+    sys.stdout = _old_stdout
+
+_result
+`);
+
+      const output_text = result.toString();
+      
+      if (output_text.trim()) {
+        outputLog.innerHTML = `<pre class="output-text">${escapeHtml(output_text)}</pre>`;
+      } else {
+        outputLog.innerHTML = '<div class="output-info">출력 결과가 없습니다.</div>';
+      }
+      
+      outputStatus.textContent = '✓ 실행 완료';
+    } catch (err) {
+      console.error("Python 실행 오류:", err);
+      outputLog.innerHTML = `<pre class="output-error">${escapeHtml(err.toString())}</pre>`;
+      outputStatus.textContent = '✗ 오류 발생';
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+
+  clearBtn.addEventListener("click", () => {
+    outputLog.innerHTML = '';
+    outputStatus.textContent = '코드 실행 후 결과가 표시됩니다';
+  });
+}
+
+// ...existing code...
+import sys
+from io import StringIO
+
+# 표준 출력 캡처
+_old_stdout = sys.stdout
+_captured_lines = []
+
+class OutputCapture:
+    def write(self, text):
+        _captured_lines.append(text)
+    def flush(self):
+        pass
+
+sys.stdout = OutputCapture()
+
+try:
+    exec("""${code.replace(/"/g, '\\"')}""")
+except Exception as e:
+    _captured_lines.append(f"Error: {type(e).__name__}: {e}")
+finally:
+    sys.stdout = _old_stdout
+
+_captured_output = ''.join(_captured_lines)
+`;
+
+      // 더 간단한 방식: 직접 코드 실행
+      const result = pyodide.runPython(`
+import sys
+from io import StringIO
+
+_old_stdout = sys.stdout
+sys.stdout = StringIO()
+
+try:
+    exec("""${code.replace(/"/g, '\\"').replace(/\n/g, '\\n')}""")
+    _result = sys.stdout.getvalue()
+except Exception as e:
+    _result = f"Error: {type(e).__name__}: {e}"
+finally:
+    sys.stdout = _old_stdout
+
+_result
+`);
+
+      const output_text = result.toString();
+      
+      if (output_text.trim()) {
+        outputLog.innerHTML = `<div class="output-text">${escapeHtml(output_text)}</div>`;
+      } else {
+        outputLog.innerHTML = '<div class="output-info">출력 결과가 없습니다.</div>';
+      }
+      
+      outputStatus.textContent = '실행 완료';
+    } catch (err) {
+      console.error("Python 실행 오류:", err);
+      outputLog.innerHTML = `<div class="output-error">${escapeHtml(err.toString())}</div>`;
+      outputStatus.textContent = '오류 발생';
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+
+  clearBtn.addEventListener("click", () => {
+    outputLog.innerHTML = '';
+    outputStatus.textContent = '코드 실행 후 결과가 표시됩니다';
+  });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // ------------------ Chat Logic ------------------
