@@ -171,14 +171,10 @@ function setupEditor() {
 
   const starter = 
 `# 세화 AI LAB ✨
-# 아래에 나만의 프로그램을 만들어 보세요.
-# AI에게는 '전체 코드'가 아니라 '힌트'만 요청해보기!
+ # 이번시간에 배운 개념을 활용하여 나만의 프로그램을 만들어 봅시다!
 
-def main():
-    print("Hello, Sehwa!")
+ print("Hello, Sehwa!")
 
-if __name__ == "__main__":
-    main()
 `;
 
   const state = EditorState.create({
