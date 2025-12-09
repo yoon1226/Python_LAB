@@ -11,6 +11,22 @@ export function setupPythonRunner() {
   // 전역 입력 큐
   window._python_input_queue = [];
 
+  // Pyodide 로딩 상태에 따라 실행 버튼 활성화 제어
+  if (typeof window.pyodideReady === 'undefined' || !window.pyodideReady) {
+    runBtn.disabled = true;
+    outputStatus.textContent = 'Pyodide 로드 중...';
+    const waitInterval = setInterval(() => {
+      if (window.pyodideReady) {
+        runBtn.disabled = false;
+        outputStatus.textContent = '대기 중';
+        clearInterval(waitInterval);
+      }
+    }, 200);
+  } else {
+    runBtn.disabled = false;
+    outputStatus.textContent = '대기 중';
+  }
+
   runBtn.addEventListener("click", async () => {
     // Pyodide 준비 확인 (main.js의 pyodideReady 변수 사용)
     if (typeof window.pyodideReady === 'undefined' || !window.pyodideReady) {

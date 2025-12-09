@@ -32,6 +32,8 @@ import { indentOnInput, bracketMatching } from "@codemirror/language";
 
 let editorView = null;
 let pyodideReady = false;
+// 전역으로도 노출하여 모듈 간 상태 확인 가능하게 함
+window.pyodideReady = false;
 
 const app = document.getElementById("app");
 
@@ -43,9 +45,11 @@ async function initPyodide() {
     let pyodide = await loadPyodide();
     window.pyodide = pyodide;
     pyodideReady = true;
+    window.pyodideReady = true;
   } catch (err) {
     console.error("Pyodide 로드 실패:", err);
     pyodideReady = false;
+    window.pyodideReady = false;
   }
 }
 
@@ -200,6 +204,8 @@ if __name__ == "__main__":
     state,
     parent: host,
   });
+  // 전역으로도 노출하여 다른 모듈에서 접근 가능하게 함
+  window.editorView = editorView;
 }
 
 // ------------------ Python Runner ------------------
