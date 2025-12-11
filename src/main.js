@@ -68,7 +68,7 @@ function renderWelcome() {
       <section class="card welcome">
         <div class="welcome-title">세화 AI LAB에 오신 걸 환영합니다 💗</div>
         <div class="welcome-sub">
-          AI는 정답이 아니라, 여러분의 생각을 돕는 <strong>도우미</strong>입니다.
+          이곳에서 오류 해결의 과정을 기록하고, 코딩 실력을 한 단계 업그레이드하세요!
         </div>
 
         <div class="welcome-form">
@@ -102,7 +102,7 @@ function renderLab(student) {
         <div class="lab-header">
           <div>
             <div class="lab-title">Sehwa AI LAB · Python Scaffolding Studio</div>
-            <div class="lab-meta">${student.studentId} ${student.studentName} · 질문할 때마다 성장 기록이 저장됩니다</div>
+            <div class="lab-meta">${student.studentId} ${student.studentName} 님 안녕하세요! 오늘도 즐거운 코딩 시간입니다👩‍💻</div>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
             <span class="badge">Hint Only</span>
@@ -215,7 +215,7 @@ function setupChat(student) {
     {
       role: "assistant",
       content:
-        "안녕하세요! 😊\n저는 여러분의 성장을 돕는 파이썬 도우미예요.\n모르는 부분이 있으면 편하게 질문해주세요! 어떻게 고치면 좋을지 방향을 함께 찾아볼게요.",
+        "안녕하세요! 😊\n저는 여러분의 성장을 돕는 파이썬 도우미예요.\n모르는 부분이 있으면 편하게 질문해주세요! \n어떻게 고치면 좋을지 방향을 함께 찾아볼게요~",
     },
   ];
   renderMessages(log, messages);
