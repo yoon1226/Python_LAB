@@ -110,7 +110,7 @@ function renderLab(student) {
           <div>
             <div class="lab-title">Sehwa AI LAB · Python Scaffolding Studio</div>
             <div class="lab-meta">
-              ${student.studentId} ${student.studentName} 님 안녕하세요! 오늘도 즐거운 코딩 시간입니다👩‍💻</div>
+               <strong>${student.studentId} ${student.studentName}</strong>님 안녕하세요! 오늘도 즐거운 코딩 시간입니다👩‍💻</div>
           </div>
 
           <div class="lab-header-right">
@@ -123,7 +123,7 @@ function renderLab(student) {
               <option value="반복문">반복문</option>
               <option value="함수">함수</option>
             </select>
-            <button id="reset-student" class="send-btn" title="학번/이름 다시 입력">정보 변경</button>
+            <button id="reset-student" class="send-btn" title="학번/이름 다시 입력">계정 변경</button>
           </div>
         </div>
 
