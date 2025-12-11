@@ -12,6 +12,7 @@ const ENTRY_STUDENT_ID = "entry.787137631";
 const ENTRY_STUDENT_NAME = "entry.1927596191";
 const ENTRY_CODE = "entry.1434858983";
 const ENTRY_PROMPT = "entry.1432979324";
+const ENTRY_UNIT = "entry.1301658319";
 
 // ★ 새로 추가해야 하는 문항: "AI 답변"
 const ENTRY_AI_ANSWER = "entry.YOUR_AI_ANSWER_ENTRY_ID";
@@ -55,11 +56,17 @@ async function initPyodide() {
 
 init();
 
+function getSelectedUnit(){
+  const el = document.getElementById("unit-select");
+  return el ? el.value : "";
+}
+
 function init() {
   const saved = loadStudent();
   if (saved) renderLab(saved);
   else renderWelcome();
 }
+
 
 // ------------------ Welcome View ------------------
 function renderWelcome() {
@@ -102,9 +109,21 @@ function renderLab(student) {
         <div class="lab-header">
           <div>
             <div class="lab-title">Sehwa AI LAB · Python Scaffolding Studio</div>
-            <div class="lab-meta">${student.studentId} ${student.studentName} 님 안녕하세요! 오늘도 즐거운 코딩 시간입니다👩‍💻</div>
+            <div class="lab-meta">
+              ${student.studentId} ${student.studentName} 님 안녕하세요! 오늘도 즐거운 코딩 시간입니다👩‍💻</div>
+            </div>
           </div>
-          <div style="display:flex; gap:8px; align-items:center;">
+
+          <div class="lab-header-right">
+            <select id="unit-select" class="unit-select">
+              <option value="">단원 선택</option>
+              <option value="변수와 자료형">변수와 자료형</option>
+              <option value="표준 입출력과 파일입출력">표준 입출력과 파일입출력</option>
+              <option value="다차원 데이터 구조">다차원 데이터 구조</option>
+              <option value="조건문">조건문</option>
+              <option value="반복문">반복문</option>
+              <option value="함수">함수</option>
+            </select>
             <span class="badge">Hint Only</span>
             <button id="reset-student" class="send-btn" title="학번/이름 다시 입력">정보 변경</button>
           </div>
@@ -242,6 +261,7 @@ function setupChat(student) {
         student,
         code: codeSnapshot,
         prompt: text,
+        unit: getSelectedUnit(),
       });
 
       messages.push({ role: "assistant", content: answer });
@@ -251,6 +271,7 @@ function setupChat(student) {
       await logToGoogleForm({
         studentId: student.studentId,
         studentName: student.studentName,
+        unit: getSelectedUnit(),
         code: codeSnapshot,
         prompt: text,
         aiAnswer: answer,
@@ -281,7 +302,7 @@ function renderMessages(container, messages) {
 }
 
 // ------------------ OpenAI Call (Hint-only) ------------------
-async function requestAiHintOnly({ student, code, prompt }) {
+async function requestAiHintOnly({ student, code, prompt, unit }) {
   if (!OPENAI_API_KEY) {
     return [
       "※ 현재 API 키가 없어 예시 힌트를 보여줘요.",
@@ -338,6 +359,7 @@ async function requestAiHintOnly({ student, code, prompt }) {
 
   const user = [
     `학생: ${student.studentId} ${student.studentName}`,
+    `현재 단원: ${unit || "미선택"}`,
     "",
     "현재 코드:",
     code || "(코드 없음)",
@@ -387,9 +409,11 @@ async function logToGoogleForm({ studentId, studentName, code, prompt, aiAnswer 
   const fd = new FormData();
   fd.append(ENTRY_STUDENT_ID, studentId);
   fd.append(ENTRY_STUDENT_NAME, studentName);
+  if (ENTRY_UNIT) {
+    fd.append(ENTRY_UNIT, unit || "");
+  }
   fd.append(ENTRY_CODE, code);
   fd.append(ENTRY_PROMPT, prompt);
-
   if (ENTRY_AI_ANSWER && !ENTRY_AI_ANSWER.includes("YOUR_")) {
     fd.append(ENTRY_AI_ANSWER, aiAnswer);
   }

@@ -309,3 +309,22 @@ body{
   .lab-grid{ grid-template-columns: 1fr; }
   .chat-panel{ min-height: 420px; }
 }
+
+.lab-header-right{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
+.unit-select{
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 0.82rem;
+  outline: none;
+}
+.unit-select:focus{
+  border-color:#fb7185;
+  box-shadow:0 0 0 2px #ffd1dc;
+}
