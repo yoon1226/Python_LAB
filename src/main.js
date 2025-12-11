@@ -228,7 +228,12 @@ function setupChat(student) {
   const input = document.getElementById("chat-input");
   const btn = document.getElementById("send-btn");
 
-  const messages = [
+  const uiKey = `sehwa_ai_lab_ui_${student.studentId}`;
+  const apiKey = `sehwa_ai_lab_api_${student.studentId}`;
+
+  // UI용 메시지(간단한 형태)와 API용 히스토리(학생정보+코드 포함)를 분리해 저장
+  const savedUi = loadChatHistory(student.studentId);
+  const messages = savedUi ?? [
     {
       role: "assistant",
       content:
@@ -251,19 +256,43 @@ function setupChat(student) {
 
     const codeSnapshot = editorView?.state.doc.toString() ?? "";
 
+    // UI에선 간단히 질문/응답을 보여줌
     messages.push({ role: "user", content: text });
     renderMessages(log, messages);
+    saveChatHistory(student.studentId, messages);
+
+    // API 히스토리 항목은 학생 정보 + 단원 + 코드 + 질문을 함께 담음
+    const userContentForAPI = [
+      `학생: ${student.studentId} ${student.studentName}`,
+      `현재 단원: ${getSelectedUnit() || "미선택"}`,
+      "",
+      "현재 코드:",
+      codeSnapshot || "(코드 없음)",
+      "",
+      "학생 질문:",
+      text,
+      "",
+      "요청:",
+      "- 전체 코드를 제공하지 마세요.",
+      "- 위의 형식(3문장 이내)으로 응답하세요.",
+      "- 학생 코드의 부족한 점을 이유와 함께 간단한 예시로 제시하고, 학생이 스스로 해결하도록 유도하는 질문을 하나 포함하세요.",
+    ].join("\n");
+
+    // 불러오기/저장: API 히스토리는 별도 키로 관리
+    let apiHistory = loadChatHistoryForAPI(student.studentId) || [];
+    apiHistory.push({ role: "user", content: userContentForAPI });
+    apiHistory = truncateChatHistory(apiHistory, 12);
 
     try {
-      const answer = await requestAiHintOnly({
-        student,
-        code: codeSnapshot,
-        prompt: text,
-        unit: getSelectedUnit(),
-      });
+      const answer = await requestAiHintOnly({ apiHistory });
 
       messages.push({ role: "assistant", content: answer });
       renderMessages(log, messages);
+      saveChatHistory(student.studentId, messages);
+
+      apiHistory.push({ role: "assistant", content: answer });
+      apiHistory = truncateChatHistory(apiHistory, 12);
+      saveChatHistoryForAPI(student.studentId, apiHistory);
 
       // ★ 질문 순간 기록 저장 (코드+프롬프트+AI답변)
       await logToGoogleForm({
@@ -282,6 +311,7 @@ function setupChat(student) {
           "앗, 지금은 힌트를 가져오지 못했어요.😢\n잠시 후 다시 시도해 주세요.",
       });
       renderMessages(log, messages);
+      saveChatHistory(student.studentId, messages);
     } finally {
       btn.disabled = false;
     }
@@ -299,8 +329,47 @@ function renderMessages(container, messages) {
   container.scrollTop = container.scrollHeight;
 }
 
+// ------------------ Chat history helpers ------------------
+function saveChatHistory(studentId, messages) {
+  try {
+    localStorage.setItem(`sehwa_ai_lab_ui_${studentId}`, JSON.stringify(messages));
+  } catch (e) {
+    console.warn("채팅 히스토리 저장 실패", e);
+  }
+}
+function loadChatHistory(studentId) {
+  try {
+    const raw = localStorage.getItem(`sehwa_ai_lab_ui_${studentId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveChatHistoryForAPI(studentId, apiHistory) {
+  try {
+    localStorage.setItem(`sehwa_ai_lab_api_${studentId}`, JSON.stringify(apiHistory));
+  } catch (e) {
+    console.warn("API 채팅 히스토리 저장 실패", e);
+  }
+}
+function loadChatHistoryForAPI(studentId) {
+  try {
+    const raw = localStorage.getItem(`sehwa_ai_lab_api_${studentId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function truncateChatHistory(history, maxEntries = 12) {
+  if (!Array.isArray(history)) return history;
+  // Keep the most recent entries
+  return history.slice(-maxEntries);
+}
+
 // ------------------ OpenAI Call (Hint-only) ------------------
-async function requestAiHintOnly({ student, code, prompt, unit }) {
+async function requestAiHintOnly({ apiHistory }) {
   if (!OPENAI_API_KEY) {
     return [
       "※ 현재 API 키가 없어 예시 힌트를 보여줘요.",
@@ -355,21 +424,11 @@ async function requestAiHintOnly({ student, code, prompt, unit }) {
     " - '정답을 대신 작성하는 대신, 스스로 수정할 수 있도록 핵심 힌트만 드릴게요.'"
   ].join(" ");
 
-  const user = [
-    `학생: ${student.studentId} ${student.studentName}`,
-    `현재 단원: ${unit || "미선택"}`,
-    "",
-    "현재 코드:",
-    code || "(코드 없음)",
-    "",
-    "학생 질문:",
-    prompt,
-    "",
-    "요청:",
-    "- 전체 코드를 제공하지 마세요.",
-    "- 위의 형식(3문장 이내)으로 응답하세요.",
-    "- 학생 코드의 부족한 점을 이유와 함께 간단한 예시로 제시하고, 학생이 스스로 해결하도록 유도하는 질문을 하나 포함하세요.",
-  ].join("\n");
+  // Compose messages: system + existing API history
+  const composedMessages = [{ role: "system", content: system }];
+  if (Array.isArray(apiHistory) && apiHistory.length) {
+    composedMessages.push(...apiHistory);
+  }
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -380,10 +439,7 @@ async function requestAiHintOnly({ student, code, prompt, unit }) {
     body: JSON.stringify({
       model: "gpt-4o-mini",
       temperature: 0.35,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
+      messages: composedMessages,
     }),
   });
 
