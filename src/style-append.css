@@ -1,0 +1,41 @@
+/* 마무리 버튼 컨테이너 */
+.finish-button-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.finish-button-container .final-submit-btn {
+  width: 100%;
+  min-width: 170px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  font-weight: 600;
+  white-space: normal;
+  text-align: center;
+  height: fit-content;
+}
+
+.finish-button-container .final-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(236, 72, 153, 0.4);
+}
+
+/* 반응형: 모바일에서는 전체 너비 사용 */
+@media (max-width: 980px) {
+  .lab-grid-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .finish-button-container {
+    width: 100%;
+  }
+
+  .finish-button-container .final-submit-btn {
+    min-width: 100%;
+  }
+}

@@ -14,6 +14,8 @@ const ENTRY_UNIT = "entry.1301658319"; // 단원명
 const ENTRY_CODE = "entry.1434858983"; //학생 코드
 const ENTRY_PROMPT = "entry.1432979324"; //프롬프트
 const ENTRY_AI_ANSWER = "entry.2110789571"; //AI 답변
+const ENTRY_REFLECTION = "entry.920895731"; //학생 회고 
+
 // ------------------------------------------------------
 
 // ------------------ OpenAI 설정 ------------------
@@ -152,7 +154,7 @@ function renderLab(student) {
               <option value="반복문">반복문</option>
               <option value="함수">함수</option>
             </select>
-            <button id="reset-student" class="send-btn" title="학번/이름 다시 입력">계정 변경</button>
+           <button id="reset-student" class="send-btn" title="학번/이름 다시 입력">계정 변경</button>
           </div>
         </div>
 
@@ -164,9 +166,10 @@ function renderLab(student) {
               <span class="panel-hint">문법 하이라이트 · 자동 들여쓰기 지원</span>
             </div>
             <div id="cm-host"></div>
-            <div style="margin-top: 10px; display: flex; gap: 8px;">
-              <button id="run-code-btn" class="run-btn" title="Python 코드 실행">▶️ 실행</button>
-              <button id="clear-output-btn" class="run-btn" title="결과 초기화">🗑️ 초기화</button>
+            <div style="margin-top: 10px; display: flex; gap: 8px; align-items: center;">
+              <button id="run-code-btn" class="run-btn" title="Python 코드 실행">▶️ 코드 실행</button>
+              <button id="clear-output-btn" class="run-btn" title="결과 초기화">🗑️ 결과 지우기</button>
+              <button id="open-reflection" class="finish-button-small" title="오늘 코딩을 정리하고 최종본을 제출해요">마무리 ✨</button>
             </div>
           </div>
 
@@ -194,11 +197,36 @@ function renderLab(student) {
             <span class="panel-hint" id="output-status">코드 실행 후 결과가 표시됩니다</span>
           </div>
           <div id="output-log" class="output-log"></div>
-                 <div id="input-container" class="input-container" style="display: none; margin-top: 10px;">
-                   <input id="python-input" class="python-input" placeholder="입력하고 Enter를 누르세요" />
-                 </div>
+          <div id="input-container" class="input-container" style="display: none; margin-top: 10px;">
+            <input id="python-input" class="python-input" placeholder="입력하고 Enter를 누르세요" />
+          </div>
+        </div>      <!-- 3줄 성찰 모달 -->
+      <div id="reflection-modal" class="reflection-modal hidden">
+        <div class="reflection-dialog">
+          <h3>💌오늘의 코딩을 마무리해 볼까요?</h3>
+          <p class="reflection-subtitle">
+            아래 세 가지를 한 번에 적어 주면, 오늘의 최종본과 함께 저장됩니다.
+          </p>
+
+          <label class="reflection-label">
+            아래 형식을 지켜서 작성해 주세요.
+            <textarea id="reflection-all" class="reflection-textarea">
+      1) 오늘 내가 스스로 해결한 부분 : 
+      2) AI 도움을 받아서 이해가 깊어진 부분 : 
+      3) 다음에 더 개선해보고 싶은 점 : 
+            </textarea>
+          </label>
+
+          <div class="reflection-actions">
+            <button id="cancel-reflection" class="secondary-button">나중에 할게요</button>
+            <button id="submit-reflection" class="primary-button">
+              최종본 제출하고 마무리하기 ✅
+            </button>
+          </div>
         </div>
-      </section>
+      </div>
+
+        </section>
     </div>
   `;
 
@@ -210,6 +238,7 @@ function renderLab(student) {
   setupEditor();
   setupPythonRunner();
   setupChat(student);
+  setupReflection(student);  
 }
 
 function setupEditor() {
@@ -219,6 +248,10 @@ function setupEditor() {
 `# 이번시간에 배운 개념을 활용하여 나만의 프로그램을 만들어 봅시다!
 
 print("Hello, Sehwa!")
+
+
+
+
 
 `;
 
@@ -362,6 +395,51 @@ function renderMessages(container, messages) {
   container.scrollTop = container.scrollHeight;
 }
 
+function setupReflection(student) {
+  const btnOpen = document.getElementById("open-reflection");
+  const modal = document.getElementById("reflection-modal");
+  const btnCancel = document.getElementById("cancel-reflection");
+  const btnSubmit = document.getElementById("submit-reflection");
+
+  if (!btnOpen || !modal) return;
+
+  btnOpen.addEventListener("click", () => {
+    modal.classList.remove("hidden");
+  });
+
+  btnCancel.addEventListener("click", () => {
+    modal.classList.add("hidden");
+  });
+
+  btnSubmit.addEventListener("click", async () => {
+    const reflectionAll = (document.getElementById("reflection-all").value || "").trim();
+
+    const codeSnapshot = editorView ? editorView.state.doc.toString() : "";
+    const unit = getSelectedUnit();
+
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = "제출 중...";
+
+    try {
+      await logFinalReflectionToGoogleForm({
+        studentId: student.studentId,
+        studentName: student.studentName,
+        unit,
+        code: codeSnapshot,
+        reflection: reflectionAll,
+      });
+
+      modal.classList.add("hidden");
+      alert("오늘 코딩 최종본과 성찰이 저장되었습니다. 수고했어요! 😊");
+    } catch (e) {
+      console.error(e);
+      alert("저장 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = "최종본 제출하고 마무리하기 ✅";
+    }
+  });
+}
 // ------------------ Chat history helpers ------------------
 function saveChatHistory(studentId, messages) {
   try {
@@ -430,10 +508,11 @@ async function requestAiHintOnly({ apiHistory }) {
 
     "",
     "응답 구성 기준:",
-    "1) 첫 문장은 학생에게 직접 말하듯, 지금 무엇이 궁금한지 부드럽게 정리해 주세요.",
+    "1) 필요하다면 첫 문장에, 학생에게 직접 말하듯 지금 무엇이 궁금한지 부드럽게 정리해 주세요.",
     "   예: '지금 질문은 반복문을 어떻게 사용할지에 대한 거네요.'",
     "   예: '질문을 보니 for문이 원하는 대로 반복되지 않는 상황이군요.'",
-    "   예: '지금은 while문으로 메뉴를 반복시키는 방법이 궁금한 거죠.'",
+    "   하지만 상황이 뻔히 드러나는 경우에는 이런 요약 문장을 생략하고,",
+    "   바로 오류 이유나 수정 방향 설명부터 시작해도 괜찮습니다.",
     "   '학생의 질문은 ~에 대한 것입니다.'처럼 딱딱한 표현은 사용하지 마십시오.",
     "2) 이어서 오류 이유나 구체적인 수정 방향, 또는 아주 짧은 예시(1~3줄)를 제시하십시오.",
     "3) 마지막에는 학생이 스스로 더 생각해 볼 수 있도록 돕는 성장 질문이나,",
@@ -527,6 +606,33 @@ async function logToGoogleForm({ studentId, studentName, code, prompt, aiAnswer,
   fd.append(ENTRY_PROMPT, prompt);
   if (ENTRY_AI_ANSWER && !ENTRY_AI_ANSWER.includes("YOUR_")) {
     fd.append(ENTRY_AI_ANSWER, aiAnswer);
+  }
+
+  await fetch(GOOGLE_FORM_ACTION_URL, {
+    method: "POST",
+    mode: "no-cors",
+    body: fd,
+  });
+}
+
+async function logFinalReflectionToGoogleForm({
+  studentId,
+  studentName,
+  unit,
+  code,
+  reflection,
+}) {
+  const fd = new FormData();
+
+  fd.append(ENTRY_STUDENT_ID, studentId);
+  fd.append(ENTRY_STUDENT_NAME, studentName);
+  if (ENTRY_UNIT) {
+    fd.append(ENTRY_UNIT, unit || "");
+  }
+  fd.append(ENTRY_CODE, code || "");
+
+  if (ENTRY_REFLECTION) {
+    fd.append(ENTRY_REFLECTION, reflection || "");
   }
 
   await fetch(GOOGLE_FORM_ACTION_URL, {
