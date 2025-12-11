@@ -8,14 +8,12 @@ const GOOGLE_FORM_ACTION_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSfnSx_oPvYvXZYoax3ymFD8qCAxm-5Azbl7pGM11h18n-k9Yw/formResponse";
 
 // 기존 4개
-const ENTRY_STUDENT_ID = "entry.787137631";
-const ENTRY_STUDENT_NAME = "entry.1927596191";
-const ENTRY_CODE = "entry.1434858983";
-const ENTRY_PROMPT = "entry.1432979324";
-const ENTRY_UNIT = "entry.1301658319";
-
-// ★ 새로 추가해야 하는 문항: "AI 답변"
-const ENTRY_AI_ANSWER = "entry.YOUR_AI_ANSWER_ENTRY_ID";
+const ENTRY_STUDENT_ID = "entry.787137631"; //학생 학번
+const ENTRY_STUDENT_NAME = "entry.1927596191"; //학생 이름
+const ENTRY_UNIT = "entry.1301658319"; // 단원명
+const ENTRY_CODE = "entry.1434858983"; //학생 코드
+const ENTRY_PROMPT = "entry.1432979324"; //프롬프트
+const ENTRY_AI_ANSWER = "entry.2110789571"; //AI 답변
 // ------------------------------------------------------
 
 // ------------------ OpenAI 설정 ------------------
@@ -43,6 +41,37 @@ initPyodide();
 
 async function initPyodide() {
   try {
+    // loadPyodide 함수는 외부 스크립트에서 주입됩니다. Netlify와 같은 환경에서는
+    // main 모듈이 실행될 때 외부 스크립트가 아직 로드되지 않아 `loadPyodide`가
+    // undefined일 수 있으므로, 스크립트의 load 이벤트를 기다린 뒤 호출합니다.
+    if (typeof loadPyodide === "undefined") {
+      const script = document.querySelector('script[src*="pyodide"]');
+      if (script) {
+        await new Promise((resolve) => {
+          if (script.readyState) {
+            // old IE (unlikely) fallback
+            script.onreadystatechange = function () {
+              if (this.readyState === 'loaded' || this.readyState === 'complete') {
+                resolve();
+              }
+            };
+          } else {
+            script.addEventListener('load', () => resolve());
+            script.addEventListener('error', () => resolve());
+          }
+        });
+      } else {
+        // 스크립트 태그가 없으면 잠깐 폴링으로 기다려본다 (극히 드문 경우)
+        let attempts = 0;
+        while (typeof loadPyodide === "undefined" && attempts < 30) {
+          // 100ms * 30 = 3초
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise((r) => setTimeout(r, 100));
+          attempts++;
+        }
+      }
+    }
+
     let pyodide = await loadPyodide();
     window.pyodide = pyodide;
     pyodideReady = true;
@@ -464,7 +493,7 @@ async function logToGoogleForm({ studentId, studentName, code, prompt, aiAnswer 
   fd.append(ENTRY_STUDENT_ID, studentId);
   fd.append(ENTRY_STUDENT_NAME, studentName);
   if (ENTRY_UNIT) {
-    fd.append(ENTRY_UNIT, unit || "");
+    fd.append(ENTRY_UNIT, getSelectedUnit() || "");
   }
   fd.append(ENTRY_CODE, code);
   fd.append(ENTRY_PROMPT, prompt);
