@@ -483,7 +483,7 @@ async function requestAiHintOnly({ apiHistory }) {
 }
 
 // ------------------ Google Form Logging ------------------
-async function logToGoogleForm({ studentId, studentName, code, prompt, aiAnswer }) {
+async function logToGoogleForm({ studentId, studentName, code, prompt, aiAnswer, unit }) {
   // ★ ENTRY_AI_ANSWER는 반드시 실제 entry 값으로 교체 필요
   if (!ENTRY_AI_ANSWER || ENTRY_AI_ANSWER.includes("YOUR_")) {
     console.warn("AI 답변 entry ID가 설정되지 않아 로그를 일부 생략합니다.");
@@ -493,7 +493,7 @@ async function logToGoogleForm({ studentId, studentName, code, prompt, aiAnswer 
   fd.append(ENTRY_STUDENT_ID, studentId);
   fd.append(ENTRY_STUDENT_NAME, studentName);
   if (ENTRY_UNIT) {
-    fd.append(ENTRY_UNIT, getSelectedUnit() || "");
+    fd.append(ENTRY_UNIT, unit || "");
   }
   fd.append(ENTRY_CODE, code);
   fd.append(ENTRY_PROMPT, prompt);
