@@ -154,7 +154,7 @@ function renderLab(student) {
               <option value="반복문">반복문</option>
               <option value="함수">함수</option>
             </select>
-           <button id="reset-student" class="send-btn" title="학번/이름 다시 입력">계정 변경</button>
+           <button id="reset-student" class="send-btn" title="학번/이름 다시 입력">로그아웃</button>
           </div>
         </div>
 
@@ -169,7 +169,7 @@ function renderLab(student) {
             <div style="margin-top: 10px; display: flex; gap: 8px; align-items: center;">
               <button id="run-code-btn" class="run-btn" title="Python 코드 실행">▶️ 코드 실행</button>
               <button id="clear-output-btn" class="run-btn" title="결과 초기화">🗑️ 결과 지우기</button>
-              <button id="open-reflection" class="finish-button-small" title="오늘 코딩을 정리하고 최종본을 제출해요">마무리 ✨</button>
+              <button id="open-reflection" class="finish-button-small" title="오늘 코딩을 정리하고 최종본을 제출해요">오·코·완 ✨</button>
             </div>
           </div>
 
@@ -205,22 +205,39 @@ function renderLab(student) {
         <div class="reflection-dialog">
           <h3>💌오늘의 코딩을 마무리해 볼까요?</h3>
           <p class="reflection-subtitle">
-            아래 세 가지를 한 번에 적어 주면, 오늘의 최종본과 함께 저장됩니다.
+            아래 세 가지를 적어 주면, 오늘의 최종본과 함께 저장됩니다.
           </p>
 
-          <label class="reflection-label">
-            아래 형식을 지켜서 작성해 주세요.
-            <textarea id="reflection-all" class="reflection-textarea">
-      1) 오늘 내가 스스로 해결한 부분 : 
-      2) AI 도움을 받아서 이해가 깊어진 부분 : 
-      3) 다음에 더 개선해보고 싶은 점 : 
-            </textarea>
-          </label>
+          <div class="reflection-fields">
+            <label class="reflection-label">
+              1) 오늘 내가 스스로 해결한 부분 :
+              <textarea id="reflect-1"
+                        class="reflection-textarea"
+                        rows="2"
+                        placeholder="스스로 고민해서 고친 부분을 적어보세요."></textarea>
+            </label>
+
+            <label class="reflection-label">
+              2) AI 도움을 받아서 이해가 깊어진 부분 :
+              <textarea id="reflect-2"
+                        class="reflection-textarea"
+                        rows="2"
+                        placeholder="AI 설명 덕분에 더 잘 이해하게 된 내용을 적어보세요."></textarea>
+            </label>
+
+            <label class="reflection-label">
+              3) 다음에 더 개선해보고 싶은 점 :
+              <textarea id="reflect-3"
+                        class="reflection-textarea"
+                        rows="2"
+                        placeholder="아쉬웠던 점이나 다음에 도전해보고 싶은 것을 적어보세요."></textarea>
+            </label>
+          </div>
 
           <div class="reflection-actions">
-            <button id="cancel-reflection" class="secondary-button">나중에 할게요</button>
+            <button id="cancel-reflection" class="secondary-button">나중에 할게요!</button>
             <button id="submit-reflection" class="primary-button">
-              최종본 제출하고 마무리하기 ✅
+              최종본 및 성장일지 제출하기 ✅
             </button>
           </div>
         </div>
@@ -246,8 +263,19 @@ function setupEditor() {
 
   const starter = 
 `# 이번시간에 배운 개념을 활용하여 나만의 프로그램을 만들어 봅시다!
-
 print("Hello, Sehwa!")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -284,6 +312,37 @@ print("Hello, Sehwa!")
 
 // ------------------ Python Runner ------------------
 // ------------------ Chat Logic ------------------
+
+// 프로그래밍 무관 질문인지 판단하는 함수
+function isProgrammingUnrelatedQuestion(text) {
+  const programmingKeywords = [
+    // 파이썬 기본
+    'python', '파이썬', 'code', '코드', 'error', '오류', 'bug', '버그', 'def', 'class',
+    'function', '함수', 'variable', '변수', 'loop', '반복', 'if', 'for', 'while',
+    'print', 'input', 'list', '리스트', 'dict', '딕셔너리', 'string', '문자열',
+    'int', 'float', 'bool', '자료형', 'syntax', '문법', 'indent', '들여쓰기',
+    'module', '모듈', 'import', 'try', 'except', 'exception', '예외',
+    // 프로그래밍 개념
+    'algorithm', '알고리즘', 'logic', '논리', 'debug', '디버그', 'trace', 'condition',
+    '조건', 'iteration', '이터', 'recursion', '재귀', 'scope', '범위',
+    'parameter', 'argument', '인자', 'return', '반환', 'method', '메서드',
+    // 오류 관련
+    'nameerror', 'typeerror', 'indexerror', 'keyerror', 'valueerror',
+    'indentationerror', 'syntaxerror', 'error', 'exception', 'traceback',
+    // 단원 관련
+    '단원', '배운', '개념', '실습', '과제', '프로젝트', 'practice', 'assignment'
+  ];
+
+  const lowerText = text.toLowerCase();
+  
+  // 프로그래밍 키워드 포함 확인
+  const hasProgrammingKeyword = programmingKeywords.some(keyword => 
+    lowerText.includes(keyword)
+  );
+
+  return !hasProgrammingKeyword; // 프로그래밍 키워드가 없으면 무관한 질문
+}
+
 function setupChat(student) {
   const log = document.getElementById("chat-log");
   const input = document.getElementById("chat-input");
@@ -298,7 +357,7 @@ function setupChat(student) {
     {
       role: "assistant",
       content:
-        "안녕하세요! 😊\n저는 여러분의 성장을 돕는 파이썬 도우미예요.\n모르는 부분이 있으면 편하게 질문해주세요! \n어떻게 고치면 좋을지 방향을 함께 찾아볼게요~",
+        "👨‍🚀 : 안녕하세요!😊 저는 여러분의 성장을 돕는 파이썬 도우미 소다예요~\n모르는 부분이 있으면 편하게 질문해주세요!",
     },
   ];
   renderMessages(log, messages);
@@ -321,6 +380,20 @@ function setupChat(student) {
     messages.push({ role: "user", content: text });
     renderMessages(log, messages);
     saveChatHistory(student.studentId, messages);
+    
+    // 프로그래밍 무관 질문 필터링
+    if (isProgrammingUnrelatedQuestion(text)) {
+      const rolesMessage = "👨‍🚀: 코딩에 관련 질문을 부탁드려요!";
+      messages.push({ role: "assistant", content: rolesMessage });
+      renderMessages(log, messages);
+      saveChatHistory(student.studentId, messages);
+      btn.disabled = false;
+      return;
+    }
+    
+    // 로딩 메시지 표시
+    messages.push({ role: "assistant", content: "AI 맞춤 피드백 작성 중~", isLoading: true });
+    renderMessages(log, messages);
 
     // API 히스토리 항목은 학생 정보 + 단원 + 코드 + 질문을 함께 담음
     const userContentForAPI = [
@@ -351,6 +424,9 @@ function setupChat(student) {
 
     try {
       const answer = await requestAiHintOnly({ apiHistory });
+      
+      // 로딩 메시지 제거
+      messages.pop();
 
       messages.push({ role: "assistant", content: answer });
       renderMessages(log, messages);
@@ -371,6 +447,8 @@ function setupChat(student) {
       });
     } catch (err) {
       console.error(err);
+      // 로딩 메시지 제거
+      messages.pop();
       messages.push({
         role: "assistant",
         content:
@@ -387,10 +465,33 @@ function setupChat(student) {
 function renderMessages(container, messages) {
   container.innerHTML = "";
   for (const m of messages) {
-    const div = document.createElement("div");
-    div.className = `msg ${m.role === "user" ? "user" : "assistant"}`;
-    div.textContent = m.content;
-    container.appendChild(div);
+    if (m.role === "user") {
+      // 사용자 메시지는 그대로 한 말풍선으로 표시
+      const div = document.createElement("div");
+      div.className = `msg ${m.role === "user" ? "user" : "assistant"}`;
+      div.textContent = m.content;
+      if (m.isLoading) {
+        div.classList.add("loading");
+      }
+      container.appendChild(div);
+    } else {
+      // 어시스턴트 메시지는 문장별로 분리
+      if (m.isLoading) {
+        const div = document.createElement("div");
+        div.className = "msg assistant loading";
+        div.textContent = m.content;
+        container.appendChild(div);
+      } else {
+        // 마침표, 느낌표, 물음표로 문장을 분리
+        const sentences = m.content.split(/(?<=[.!?])\s+/).filter(s => s.trim());
+        for (const sentence of sentences) {
+          const div = document.createElement("div");
+          div.className = "msg assistant";
+          div.textContent = sentence;
+          container.appendChild(div);
+        }
+      }
+    }
   }
   container.scrollTop = container.scrollHeight;
 }
@@ -412,7 +513,15 @@ function setupReflection(student) {
   });
 
   btnSubmit.addEventListener("click", async () => {
-    const reflectionAll = (document.getElementById("reflection-all").value || "").trim();
+    const r1 = (document.getElementById("reflect-1").value || "").trim();
+    const r2 = (document.getElementById("reflect-2").value || "").trim();
+    const r3 = (document.getElementById("reflect-3").value || "").trim();
+
+    const reflectionAll = [
+      `1) 오늘 내가 스스로 해결한 부분 : ${r1}`,
+      `2) AI 도움을 받아서 이해가 깊어진 부분 : ${r2}`,
+      `3) 다음에 더 개선해보고 싶은 점 : ${r3}`,
+    ].join("\n");
 
     const codeSnapshot = editorView ? editorView.state.doc.toString() : "";
     const unit = getSelectedUnit();
@@ -483,11 +592,10 @@ function truncateChatHistory(history, maxEntries = 12) {
 async function requestAiHintOnly({ apiHistory }) {
   if (!OPENAI_API_KEY) {
     return [
-      "※ 현재 API 키가 없어 예시 힌트를 보여줘요.",
+      "※ 현재 API 키가 없어 기본 힌트를 줄게요.",
       "",
       "힌트 1) 에러 메시지에 나온 줄 번호를 먼저 확인해 보세요.",
       "힌트 2) if/for/while 아래 들여쓰기가 정확한지 점검해 보세요.",
-      "힌트 3) input() 값의 자료형 변환(int/float)이 필요한지 확인해 보세요.",
     ].join("\n");
   }
 
@@ -652,5 +760,12 @@ function loadStudent() {
   try { return JSON.parse(raw); } catch { return null; }
 }
 function clearStudent() {
+  const currentStudent = loadStudent();
+  
+  // 현재 학생의 모든 기록 삭제
   localStorage.removeItem("sehwa_ai_lab_student");
+  if (currentStudent && currentStudent.studentId) {
+    localStorage.removeItem(`sehwa_ai_lab_ui_${currentStudent.studentId}`);
+    localStorage.removeItem(`sehwa_ai_lab_api_${currentStudent.studentId}`);
+  }
 }

@@ -2,7 +2,7 @@
 
 body{
   margin:0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
   background: linear-gradient(135deg, #ffe6f2, #e6f3ff);
   min-height: 100vh;
   color:#1f2937;
@@ -215,14 +215,35 @@ body{
   border-radius: 10px;
   font-size: .9rem;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 .msg.user{
   background: #ffe4ef;
   border: 1px solid #ffbfd7;
+  margin-left: 20px;
+  text-align: left;
 }
 .msg.assistant{
   background: #eef2ff;
   border: 1px solid #c7d2fe;
+  margin-right: 20px;
+  text-align: left;
+}
+
+/* 로딩 상태 스타일 */
+.msg.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+  opacity: 0.8;
+  font-style: italic;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .chat-input-row{
@@ -415,8 +436,10 @@ body{
 
 .reflection-label {
   display: block;
-  font-size: 0.85rem;
-  margin-top: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-top: 12px;
+  color: #374151;
 }
 
 .reflection-textarea {
@@ -440,7 +463,61 @@ body{
   margin-top: 14px;
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
+}
+
+.secondary-button {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1.5px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.secondary-button:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.1);
+}
+
+.secondary-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(107, 114, 128, 0.08);
+}
+
+.primary-button {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(120deg, #fb7185, #ec4899);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 16px rgba(236, 72, 153, 0.3);
+}
+
+.primary-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(236, 72, 153, 0.4);
+}
+
+.primary-button:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 12px rgba(236, 72, 153, 0.3);
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 /* 마무리 버튼 컨테이너 */
