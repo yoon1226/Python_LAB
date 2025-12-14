@@ -18,6 +18,42 @@ const ENTRY_REFLECTION = "entry.920895731"; //학생 회고
 
 // ------------------------------------------------------
 
+// Helper: 안전한 브라우저 폼 제출 (fetch no-cors 대신 사용)
+function submitFormPost(url, fields = {}) {
+  try {
+    // 보이지 않는 iframe을 생성하여 폼 제출 시 현재 페이지가 이동하지 않도록 함
+    const iframeName = `gf_iframe_${Date.now()}`;
+    const iframe = document.createElement("iframe");
+    iframe.name = iframeName;
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = url;
+    form.target = iframeName;
+    form.style.display = "none";
+    Object.keys(fields).forEach((k) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = k;
+      input.value = fields[k] == null ? "" : String(fields[k]);
+      form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+
+    // 정리: 폼/iframe을 잠시 후 제거
+    setTimeout(() => {
+      try { form.remove(); } catch (e) {}
+      try { iframe.remove(); } catch (e) {}
+    }, 2000);
+    return Promise.resolve();
+  } catch (e) {
+    return Promise.reject(e);
+  }
+}
+
 // ------------------ OpenAI 설정 ------------------
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 // ⚠️ 실서비스는 Netlify Functions 권장. 수업 데모용으로만 클라 호출 예시.
@@ -29,7 +65,7 @@ import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from "@cod
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { python } from "@codemirror/lang-python";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { indentOnInput, bracketMatching } from "@codemirror/language";
+import { indentOnInput, bracketMatching, indentService } from "@codemirror/language";
 
 let editorView = null;
 let pyodideReady = false;
@@ -88,8 +124,10 @@ async function initPyodide() {
 init();
 
 function getSelectedUnit(){
-  const el = document.getElementById("unit-select");
-  return el ? el.value : "";
+  const el = document.getElementById("unit-select") || document.getElementById("w-unit-select");
+  if (el) return el.value;
+  const s = loadStudent();
+  return s && s.unit ? s.unit : "";
 }
 
 function init() {
@@ -110,8 +148,17 @@ function renderWelcome() {
         </div>
 
         <div class="welcome-form">
-          <input id="w-student-id" class="input" placeholder="학번" />
+          <input id="w-student-id" class="input" placeholder="학번" inputmode="numeric" pattern="[0-9]+" />
           <input id="w-student-name" class="input" placeholder="이름" />
+          <select id="w-unit-select" class="unit-select">
+            <option value="">학습 단원</option>
+            <option value="변수와 자료형">변수와 자료형</option>
+            <option value="표준입출력과 파일입출력">표준 입출력과 파일입출력</option>
+            <option value="다차원 데이터 구조">다차원 데이터 구조</option>
+            <option value="조건문">조건문</option>
+            <option value="반복문">반복문</option>
+            <option value="함수">함수</option>
+          </select>
           <button id="w-start" class="primary-btn">입장하기 ✨</button>
         </div>
       </section>
@@ -122,11 +169,26 @@ function renderWelcome() {
   btn.addEventListener("click", () => {
     const studentId = document.getElementById("w-student-id").value.trim();
     const studentName = document.getElementById("w-student-name").value.trim();
-    if (!studentId || !studentName) {
-      alert("학번과 이름을 입력해 주세요!");
+    const unit = document.getElementById("w-unit-select").value;
+
+    if (!studentId) {
+      alert("학번을 입력해 주세요.");
       return;
     }
-    const s = { studentId, studentName };
+    if (!/^\d+$/.test(studentId)) {
+      alert("학번은 숫자(정수)만 입력할 수 있습니다.");
+      return;
+    }
+    if (!studentName) {
+      alert("이름을 반드시 입력해 주세요.");
+      return;
+    }
+    if (!unit) {
+      alert("단원을 선택해 주세요.");
+      return;
+    }
+
+    const s = { studentId, studentName, unit };
     saveStudent(s);
     renderLab(s);
   });
@@ -145,16 +207,10 @@ function renderLab(student) {
           </div>
 
           <div class="lab-header-right">
-            <select id="unit-select" class="unit-select">
-              <option value="">단원 선택</option>
-              <option value="변수와 자료형">변수와 자료형</option>
-              <option value="표준 입출력과 파일입출력">표준 입출력과 파일입출력</option>
-              <option value="다차원 데이터 구조">다차원 데이터 구조</option>
-              <option value="조건문">조건문</option>
-              <option value="반복문">반복문</option>
-              <option value="함수">함수</option>
-            </select>
-           <button id="reset-student" class="send-btn" title="학번/이름 다시 입력">로그아웃</button>
+            <div class="header-actions">
+              <button id="open-reflection" class="finish-button-small" title="오늘 코딩을 정리하고 최종본을 제출해요">오·코·완 ✨</button>
+              <button id="reset-student" class="secondary-button" title="로그아웃 (기록 지우기)">로그아웃</button>
+            </div>
           </div>
         </div>
 
@@ -167,9 +223,6 @@ function renderLab(student) {
             </div>
             <div id="cm-host"></div>
             <div style="margin-top: 10px; display: flex; gap: 8px; align-items: center;">
-              <button id="run-code-btn" class="run-btn" title="Python 코드 실행">▶️ 코드 실행</button>
-              <button id="clear-output-btn" class="run-btn" title="결과 초기화">🗑️ 결과 지우기</button>
-              <button id="open-reflection" class="finish-button-small" title="오늘 코딩을 정리하고 최종본을 제출해요">오·코·완 ✨</button>
             </div>
           </div>
 
@@ -184,66 +237,84 @@ function renderLab(student) {
 
             <div class="chat-input-row">
               <input id="chat-input" class="chat-input"
-                placeholder="예) 이 오류가 왜 나는지 힌트만 알려주세요" />
+                placeholder="예) 오류가 나는 이유가 무엇인요?" />
               <button id="send-btn" class="send-btn">보내기</button>
             </div>
+
+            
           </div>
         </div>
 
-        <!-- Output Panel -->
         <div class="output-panel" style="margin-top: 14px;">
-          <div class="panel-title">
-            <h3>📊 실행 결과</h3>
-            <span class="panel-hint" id="output-status">코드 실행 후 결과가 표시됩니다</span>
+          <div class="panel-title output-title-row">
+            <div>
+              <h3>📊 실행 결과</h3>
+              <span class="panel-hint" id="output-status">
+                코드 실행 후 결과가 표시됩니다
+              </span>
+            </div>
+            <div class="output-actions">
+              <button id="run-code-btn"
+                      class="run-btn"
+                      title="Python 코드 실행">
+                ▶️ 코드 실행
+              </button>
+              <button id="clear-output-btn"
+                      class="run-btn ghost"
+                      title="결과 초기화">
+                🗑️ 결과 지우기
+              </button>
+            </div>
           </div>
+
           <div id="output-log" class="output-log"></div>
           <div id="input-container" class="input-container" style="display: none; margin-top: 10px;">
             <input id="python-input" class="python-input" placeholder="입력하고 Enter를 누르세요" />
           </div>
-        </div>      <!-- 3줄 성찰 모달 -->
-      <div id="reflection-modal" class="reflection-modal hidden">
-        <div class="reflection-dialog">
-          <h3>💌오늘의 코딩을 마무리해 볼까요?</h3>
-          <p class="reflection-subtitle">
-            아래 세 가지를 적어 주면, 오늘의 최종본과 함께 저장됩니다.
-          </p>
+        </div>
 
-          <div class="reflection-fields">
-            <label class="reflection-label">
-              1) 오늘 내가 스스로 해결한 부분 :
-              <textarea id="reflect-1"
-                        class="reflection-textarea"
-                        rows="2"
-                        placeholder="스스로 고민해서 고친 부분을 적어보세요."></textarea>
-            </label>
+        <!-- 3줄 성찰 모달 -->
+        <div id="reflection-modal" class="reflection-modal hidden">
+          <div class="reflection-dialog">
+            <h3>💌오늘의 코딩을 마무리해 볼까요?</h3>
+            <p class="reflection-subtitle">
+              아래 세 가지를 적어 주면, 오늘의 최종본과 함께 저장됩니다.
+            </p>
 
-            <label class="reflection-label">
-              2) AI 도움을 받아서 이해가 깊어진 부분 :
-              <textarea id="reflect-2"
-                        class="reflection-textarea"
-                        rows="2"
-                        placeholder="AI 설명 덕분에 더 잘 이해하게 된 내용을 적어보세요."></textarea>
-            </label>
+            <div class="reflection-fields">
+              <label class="reflection-label">
+                1) 오늘 내가 스스로 해결한 부분 :
+                <textarea id="reflect-1"
+                          class="reflection-textarea"
+                          rows="2"
+                          placeholder="스스로 고민해서 고친 부분을 적어보세요."></textarea>
+              </label>
 
-            <label class="reflection-label">
-              3) 다음에 더 개선해보고 싶은 점 :
-              <textarea id="reflect-3"
-                        class="reflection-textarea"
-                        rows="2"
-                        placeholder="아쉬웠던 점이나 다음에 도전해보고 싶은 것을 적어보세요."></textarea>
-            </label>
-          </div>
+              <label class="reflection-label">
+                2) AI 도움을 받아서 이해가 깊어진 부분 :
+                <textarea id="reflect-2"
+                          class="reflection-textarea"
+                          rows="2"
+                          placeholder="AI 설명 덕분에 더 잘 이해하게 된 내용을 적어보세요."></textarea>
+              </label>
 
-          <div class="reflection-actions">
-            <button id="cancel-reflection" class="secondary-button">나중에 할게요!</button>
-            <button id="submit-reflection" class="primary-button">
-              최종본 및 성장일지 제출하기 ✅
-            </button>
+              <label class="reflection-label">
+                3) 다음에 더 개선해보고 싶은 점 :
+                <textarea id="reflect-3"
+                          class="reflection-textarea"
+                          rows="2"
+                          placeholder="아쉬웠던 점이나 다음에 도전해보고 싶은 것을 적어보세요."></textarea>
+              </label>
+            </div>
+
+            <div class="reflection-actions">
+              <button id="cancel-reflection" class="secondary-button">나중에 할게요!</button>
+              <button id="submit-reflection" class="primary-button">
+                최종본 및 성장일지 제출하기 ✅
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-
-        </section>
     </div>
   `;
 
@@ -252,21 +323,54 @@ function renderLab(student) {
     renderWelcome();
   };
 
-  setupEditor();
+  setupEditor(student.unit);
   setupPythonRunner();
   setupChat(student);
   setupReflection(student);  
 }
 
-function setupEditor() {
+function setupEditor(unit) {
   const host = document.getElementById("cm-host");
 
   const starter = 
-`# 이번시간에 배운 개념을 활용하여 나만의 프로그램을 만들어 봅시다!
+`#${unit || "개념"}을 활용하여 나만의 프로그램을 만들어 봅시다!
 print("Hello, Sehwa!")
 
 
 `;
+
+  // Python 콜론 다음 Enter 시만 자동 들여쓰기 (다른 경우는 기본 Enter만)
+  const pythonIndentHandler = keymap.of([
+    {
+      key: "Enter",
+      run: (view) => {
+        const { from, to } = view.state.selection.main;
+        const line = view.state.doc.lineAt(from);
+        const beforeCursor = line.text.slice(0, from - line.from);
+        const currentIndent = line.text.match(/^(\s*)/)[1];
+        
+        // 현재 줄이 콜론으로 끝나는지 확인
+        if (beforeCursor.trimEnd().endsWith(":")) {
+          // 콜론이 있을 때: 기본 들여쓰기 + 추가 들여쓰기
+          const newIndent = currentIndent + "  "; // 2칸 추가
+          const tr = view.state.update({
+            changes: { from, to, insert: "\n" + newIndent },
+            selection: EditorSelection.cursor(from + 1 + newIndent.length),
+          });
+          view.dispatch(tr);
+          return true;
+        } else {
+          // 콜론이 없을 때: 기본 Enter만 (이전 줄의 들여쓰기 유지)
+          const tr = view.state.update({
+            changes: { from, to, insert: "\n" + currentIndent },
+            selection: EditorSelection.cursor(from + 1 + currentIndent.length),
+          });
+          view.dispatch(tr);
+          return true;
+        }
+      },
+    },
+  ]);
 
   const state = EditorState.create({
     doc: starter,
@@ -281,6 +385,7 @@ print("Hello, Sehwa!")
         ...defaultKeymap,
         ...historyKeymap,
       ]),
+      pythonIndentHandler,
       python(),
       oneDark,
       EditorView.lineWrapping,
@@ -370,7 +475,7 @@ function setupChat(student) {
     {
       role: "assistant",
       content:
-        "👨‍🚀: 안녕하세요! 저는 여러분의 성장을 돕는 파이썬 도우미 소다예요😊 \n모르는 부분이 있으면 편하게 질문해주세요!",
+        "👨‍🚀: 저는 여러분의 성장을 돕는 파이썬 도우미 소다예요😊 \n모르는 부분이 있으면 편하게 질문해주세요!",
     },
   ];
   renderMessages(log, messages);
@@ -623,7 +728,7 @@ function truncateChatHistory(history, maxEntries = 12) {
 async function requestAiHintOnly({ apiHistory }) {
   if (!OPENAI_API_KEY) {
     return [
-      "※ 현재 API 키가 없어 기본 힌트를 줄게요.",
+      "※ 현재 소다와의 통신이 끊겼어요🥲 대신 도움이 될 만한 힌트를 줄게요!",
       "",
       "힌트 1) 에러 메시지에 나온 줄 번호를 먼저 확인해 보세요.",
       "힌트 2) if/for/while 아래 들여쓰기가 정확한지 점검해 보세요.",
@@ -758,13 +863,11 @@ async function logToGoogleForm({
       hasAiAnswer: !!aiAnswer,
     });
 
-    await fetch(GOOGLE_FORM_ACTION_URL, {
-      method: "POST",
-      mode: "no-cors",
-      body: fd,
-    });
-
-    console.log("[logToGoogleForm] done (no-cors opaque)");
+    // FormData -> 평탄한 객체로 변환하여 DOM 폼으로 제출
+    const flat = {};
+    for (const pair of fd.entries()) flat[pair[0]] = pair[1];
+    await submitFormPost(GOOGLE_FORM_ACTION_URL, flat);
+    console.log("[logToGoogleForm] done (submitted via form)");
   } catch (err) {
     console.error("[logToGoogleForm] 실패", err);
   }
@@ -798,13 +901,11 @@ async function logFinalReflectionToGoogleForm({
       hasReflection: !!reflection,
     });
 
-    await fetch(GOOGLE_FORM_ACTION_URL, {
-      method: "POST",
-      mode: "no-cors",
-      body: fd,
-    });
-
-    console.log("[logFinalReflectionToGoogleForm] done (no-cors opaque)");
+    // FormData -> 평탄화 후 DOM 폼으로 제출
+    const flat = {};
+    for (const pair of fd.entries()) flat[pair[0]] = pair[1];
+    await submitFormPost(GOOGLE_FORM_ACTION_URL, flat);
+    console.log("[logFinalReflectionToGoogleForm] done (submitted via form)");
   } catch (err) {
     console.error("[logFinalReflectionToGoogleForm] 실패", err);
     throw err;

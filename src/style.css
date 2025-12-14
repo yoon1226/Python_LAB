@@ -13,6 +13,16 @@ body{
   margin: 24px auto 40px;
 }
 
+/* 데스크탑에서 콘텐츠를 약간 아래로 내려 중앙-하단 쪽 여유를 만듭니다. 모바일에는 영향 없음 */
+@media (min-width: 981px) {
+  .app-shell{
+    margin-top: 88px;
+  }
+  .lab{
+    padding-top: 28px;
+  }
+}
+
 /* 공통 카드 */
 .card{
   background: #ffffffee;
@@ -61,6 +71,44 @@ body{
 .input:focus{
   border-color: #fb7185;
   box-shadow: 0 0 0 2px #ffd1dc;
+}
+
+/* Welcome 화면의 단원 선택을 입력과 동일한 스타일로 맞춤 */
+.welcome-form .unit-select,
+#w-unit-select{
+  padding: 12px 14px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 1rem;
+  outline: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+.welcome-form .unit-select:focus,
+#w-unit-select:focus{
+  border-color: #fb7185;
+  box-shadow: 0 0 0 2px #ffd1dc;
+}
+
+/* 헤더의 액션 버튼 그룹 정렬 및 스타일 개선 */
+.header-actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin-left: 12px;
+}
+.lab-header .header-actions .secondary-button{
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #1f2937;
+  font-weight: 600;
+}
+.lab-header .header-actions .secondary-button:hover{
+  box-shadow: 0 6px 12px rgba(0,0,0,0.06);
 }
 
 .primary-btn{
@@ -161,7 +209,7 @@ body{
   background: linear-gradient(135deg, #ffffff, #f8fbff);
   display: flex;
   flex-direction: column;
-  min-height: 520px;
+  min-height: 550px;
 }
 
 .panel-title{
@@ -582,3 +630,29 @@ body{
   padding: 0 2px;
 }
 
+.output-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.output-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.run-btn.ghost {
+  background: #fff;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+}
+
+.run-btn.ghost:hover {
+  background: #f9fafb;
+}
+
+.chat-footer-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
