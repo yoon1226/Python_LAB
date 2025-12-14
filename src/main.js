@@ -560,13 +560,15 @@ function setupChat(student) {
 
     try {
       const answer = await requestAiHintOnly({ apiHistory });
-      
+
       // 로딩 메시지 제거
       messages.pop();
 
       messages.push({ role: "assistant", content: answer });
-      renderMessages(log, messages);
+      // 🔹 마지막 assistant 메시지를 0.5초 텀으로 순차 출력
+      renderMessages(log, messages, { animateLastAssistant: true });
       saveChatHistory(student.studentId, messages);
+
 
       apiHistory.push({ role: "assistant", content: answer });
       apiHistory = truncateChatHistory(apiHistory, 12);
@@ -598,39 +600,77 @@ function setupChat(student) {
   }
 }
 
-function renderMessages(container, messages) {
+function renderMessages(container, messages, options = {}) {
+  const { animateLastAssistant = false } = options;
+
+  // 이전 애니메이션 타이머가 있으면 정리
+  if (window._sehwaChatTimers && Array.isArray(window._sehwaChatTimers)) {
+    window._sehwaChatTimers.forEach((t) => clearTimeout(t));
+  }
+  window._sehwaChatTimers = [];
+
   container.innerHTML = "";
-  for (const m of messages) {
+
+  const lastIdx = messages.length - 1;
+  let animateSentences = null;
+  let lastIndexToRenderNow = lastIdx;
+
+  // 마지막 메시지가 assistant이고, 애니메이션 옵션이 켜져 있으면
+  // 그 메시지의 문장만 0.5초 간격으로 순차 출력
+  if (
+    animateLastAssistant &&
+    lastIdx >= 0 &&
+    messages[lastIdx].role === "assistant" &&
+    !messages[lastIdx].isLoading
+  ) {
+    const lastMsg = messages[lastIdx];
+    animateSentences = lastMsg.content
+      .split(/(?<=[.!?])\s+/)
+      .filter((s) => s.trim());
+    lastIndexToRenderNow = lastIdx - 1; // 나머지 앞부분만 즉시 렌더링
+  }
+
+  function appendBubble(role, text, isLoading) {
+    const div = document.createElement("div");
+    div.className = `msg ${role}`;
+    if (isLoading) div.classList.add("loading");
+    div.textContent = text;
+    container.appendChild(div);
+  }
+
+  // 1) 마지막 assistant 이전까지의 메시지들은 한 번에 렌더링
+  for (let i = 0; i <= lastIndexToRenderNow; i++) {
+    const m = messages[i];
     if (m.role === "user") {
-      // 사용자 메시지는 그대로 한 말풍선으로 표시
-      const div = document.createElement("div");
-      div.className = `msg ${m.role === "user" ? "user" : "assistant"}`;
-      div.textContent = m.content;
-      if (m.isLoading) {
-        div.classList.add("loading");
-      }
-      container.appendChild(div);
+      appendBubble("user", m.content, m.isLoading);
     } else {
-      // 어시스턴트 메시지는 문장별로 분리
       if (m.isLoading) {
-        const div = document.createElement("div");
-        div.className = "msg assistant loading";
-        div.textContent = m.content;
-        container.appendChild(div);
+        appendBubble("assistant", m.content, true);
       } else {
-        // 마침표, 느낌표, 물음표로 문장을 분리
-        const sentences = m.content.split(/(?<=[.!?])\s+/).filter(s => s.trim());
-        for (const sentence of sentences) {
-          const div = document.createElement("div");
-          div.className = "msg assistant";
-          div.textContent = sentence;
-          container.appendChild(div);
-        }
+        const sentences = m.content
+          .split(/(?<=[.!?])\s+/)
+          .filter((s) => s.trim());
+        sentences.forEach((sentence) => {
+          appendBubble("assistant", sentence, false);
+        });
       }
     }
   }
-  container.scrollTop = container.scrollHeight;
+
+  // 2) 마지막 assistant 메시지 문장들을 0.5초 간격으로 순차 출력
+  if (animateSentences && animateSentences.length > 0) {
+    animateSentences.forEach((sentence, idx) => {
+      const t = setTimeout(() => {
+        appendBubble("assistant", sentence, false);
+        container.scrollTop = container.scrollHeight;
+      }, idx * 500); // 0.5초 간격
+      window._sehwaChatTimers.push(t);
+    });
+  } else {
+    container.scrollTop = container.scrollHeight;
+  }
 }
+
 
 function setupReflection(student) {
   const btnOpen = document.getElementById("open-reflection");
