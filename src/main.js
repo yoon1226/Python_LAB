@@ -7,7 +7,7 @@ import { setupPythonRunner } from "./python-runner.js";
 const GOOGLE_FORM_ACTION_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSfnSx_oPvYvXZYoax3ymFD8qCAxm-5Azbl7pGM11h18n-k9Yw/formResponse";
 
-// 기존 4개
+// 응답
 const ENTRY_STUDENT_ID = "entry.787137631"; //학생 학번
 const ENTRY_STUDENT_NAME = "entry.1927596191"; //학생 이름
 const ENTRY_UNIT = "entry.1301658319"; // 단원명
@@ -300,33 +300,61 @@ print("Hello, Sehwa!")
 
 // 프로그래밍 무관 질문인지 판단하는 함수
 function isProgrammingUnrelatedQuestion(text) {
+  const lowerText = text.toLowerCase();
+
+  // 1) 프로그래밍 확장/응용 관련 표현이면 "관련 질문"으로 본다.
+  const metaPatterns = [
+    "확장", "응용", "발전", "심화",
+    "더 어떻게", "더 해볼 수", "더 해 보고 싶",
+    "여기서 더", "이거를 더", "이 코드를", "이 프로그램을",
+    "다른 방법", "다른 방식", "더 좋은 방법"
+  ];
+  if (metaPatterns.some(p => text.includes(p))) {
+    return false; // 프로그래밍 관련 질문으로 처리
+  }
+
+  // 2) 기존 프로그래밍 키워드 목록
   const programmingKeywords = [
     // 파이썬 기본
-    'python', '파이썬', 'code', '코드', 'error', '오류', 'bug', '버그', 'def', 'class',
-    'function', '함수', 'variable', '변수', 'loop', '반복', 'if', 'for', 'while',
-    'print', 'input', 'list', '리스트', 'dict', '딕셔너리', 'string', '문자열',
-    'int', 'float', 'bool', '자료형', 'syntax', '문법', 'indent', '들여쓰기',
-    'module', '모듈', 'import', 'try', 'except', 'exception', '예외',
+    "python", "파이썬", "code", "코드", "error", "오류", "bug", "버그", "def", "class",
+    "function", "함수", "variable", "변수", "loop", "반복", "if", "for", "while",
+    "print", "input", "list", "리스트", "dict", "딕셔너리", "string", "문자열",
+    "int", "float", "bool", "자료형", "syntax", "문법", "indent", "들여쓰기",
+    "module", "모듈", "import", "try", "except", "exception", "예외",
     // 프로그래밍 개념
-    'algorithm', '알고리즘', 'logic', '논리', 'debug', '디버그', 'trace', 'condition',
-    '조건', 'iteration', '이터', 'recursion', '재귀', 'scope', '범위',
-    'parameter', 'argument', '인자', 'return', '반환', 'method', '메서드',
+    "algorithm", "알고리즘", "logic", "논리", "debug", "디버그", "trace", "condition",
+    "조건", "iteration", "재귀", "scope", "범위",
+    "parameter", "argument", "인자", "return", "반환", "method", "메서드",
     // 오류 관련
-    'nameerror', 'typeerror', 'indexerror', 'keyerror', 'valueerror',
-    'indentationerror', 'syntaxerror', 'error', 'exception', 'traceback',
+    "nameerror", "typeerror", "indexerror", "keyerror", "valueerror",
+    "indentationerror", "syntaxerror", "traceback",
     // 단원 관련
-    '단원', '배운', '개념', '실습', '과제', '프로젝트', 'practice', 'assignment'
+    "단원", "배운", "개념", "실습", "과제", "프로젝트", "practice", "assignment"
   ];
 
-  const lowerText = text.toLowerCase();
-  
-  // 프로그래밍 키워드 포함 확인
-  const hasProgrammingKeyword = programmingKeywords.some(keyword => 
+  const hasProgrammingKeyword = programmingKeywords.some(keyword =>
     lowerText.includes(keyword)
   );
+  if (hasProgrammingKeyword) {
+    return false; // 프로그래밍 관련
+  }
 
-  return !hasProgrammingKeyword; // 프로그래밍 키워드가 없으면 무관한 질문
+  // 3) 진짜로 수업이랑 상관없는 얘기만 명시적으로 막기
+  const nonProgrammingKeywords = [
+    "점심", "급식", "밥 뭐", "연애", "사랑", "썸", "남친", "여친",
+    "mbti", "타로", "운세", "날씨", "오늘 날씨", "게임 추천", "영화 추천"
+  ];
+  const hasNonProgrammingKeyword = nonProgrammingKeywords.some(keyword =>
+    text.includes(keyword)
+  );
+  if (hasNonProgrammingKeyword) {
+    return true; // 프로그래밍 무관
+  }
+
+  // 4) 애매한 경우에는 "관련"으로 보되, 나중에 프롬프트에서 자연스럽게 유도
+  return false;
 }
+
 
 function setupChat(student) {
   const log = document.getElementById("chat-log");
@@ -370,27 +398,31 @@ function setupChat(student) {
     if (isProgrammingUnrelatedQuestion(text)) {
       const lower = text.toLowerCase();
       const thanksPatterns = [
-        "감사", "고맙", "감사합니다", "고맙습니다", "thx", "thanks", "thank", "ㄱㅅ"
+        "감사", "고맙", "감사합니다", "고맙습니다",
+        "thx", "thanks", "thank", "ㄱㅅ"
       ];
       const isThanks = thanksPatterns.some(p => lower.includes(p));
 
       if (isThanks) {
-        // 감사 인사면 친절히 확인 메세지만 보내고 차단하지 않음
         const ack = "도움이 되었다니 다행이에요! 필요하면 언제든 코드나 오류를 질문해 주세요 :)";
         messages.push({ role: "assistant", content: ack });
-      } else {
-        // 그 외 무관 질문은 간단한 안내로 처리
-        const rolesMessage = "파이썬 관련 질문을 해 주세요! 다른 내용은 도와드릴 수 없어요 :(";
-        messages.push({ role: "assistant", content: rolesMessage });
+        renderMessages(log, messages);
+        saveChatHistory(student.studentId, messages);
+        btn.disabled = false;
+        return;
       }
 
-      renderMessages(log, messages);
-      saveChatHistory(student.studentId, messages);
-      btn.disabled = false;
-      return;
+      // 여기서부터 프로그래밍 무관 질문 필터링
+      if (isProgrammingUnrelatedQuestion(text)) {
+        const rolesMessage = "파이썬 관련 질문을 해 주세요! 다른 내용은 도와드릴 수 없어요 :(";
+        messages.push({ role: "assistant", content: rolesMessage });
+        renderMessages(log, messages);
+        saveChatHistory(student.studentId, messages);
+        btn.disabled = false;
+        return;
+      }
     }
-// ...existing code...
-    
+
     // 로딩 메시지 표시
     messages.push({ role: "assistant", content: "AI 맞춤 피드백 작성 중... ", isLoading: true });
     renderMessages(log, messages);
@@ -408,7 +440,7 @@ function setupChat(student) {
       "",
       "요청:",
       "- 전체 코드를 제공하지 마세요.",
-      "- 답변 전체 길이는 3~5문장으로 제한해주세요.",
+      "- 답변 전체 길이는 3문장으로 제한해주세요.",
       "- 오류 이유나 수정 방향, 또는 생각해 볼 만한 아이디어를 1~3문장으로 제시해주세요.",
       "- 학생이 명시적으로 '코드로 예시 보여줘'라고 요청하지 않는 한, 실제 파이썬 코드 줄을 쓰지 말고 자연어로 설명해주세요.",
       "- 코드 예시를 꼭 보여줘야 할 때는 한 줄짜리 패턴(예: 'for i in range(횟수): ...') 형태로만 제시해주세요.",
@@ -607,24 +639,16 @@ async function requestAiHintOnly({ apiHistory }) {
     "언어/형식 규칙:",
     "응답은 한국어로만 작성하십시오.",
     "마크다운 문법(제목, 목록 기호, 코드블록 등)을 사용하지 마십시오.",
-    "길이는 3~6문장 내로 간결하게 작성하십시오.",
-    "한 문장은 너무 길게 쓰지 말고, 하나의 핵심만 담아서 짧게 작성하십시오.",
-    "친절하지만 단호한 교사 톤을 유지하십시오.",
-    "가능하면 '동적으로', '추상화'처럼 어려운 전문 용어 대신,",
-    " '상황에 따라 바뀌게', '원하는 만큼 바꾸게'처럼 일상적인 표현으로 풀어서 설명하십시오.",
+    "답변 전체 길이는 3~5문장 내로 간결하게 작성하십시오.",
+    "문장을 여러 줄로 나누지 마십시오. 학생 화면에서는 줄바꿈마다 말풍선이 하나씩 생기므로, 하나의 답변을 1개의 말풍선에 담는다고 생각하세요.",
+    "친절하지만 단호한 교사 톤을 유지하고, 고등학생도 이해하기 쉬운 말을 사용하십시오.",
 
     "",
     "응답 구성 기준:",
-    "1) 필요하다면 첫 문장에, 학생에게 직접 말하듯 지금 무엇이 궁금한지 부드럽게 정리해 주세요.",
-    "   예: '지금 질문은 반복문을 어떻게 사용할지에 대한 거네요.'",
-    "   예: '질문을 보니 for문이 원하는 대로 반복되지 않는 상황이군요.'",
-    "   하지만 상황이 뻔히 드러나는 경우에는 이런 요약 문장을 생략하고,",
-    "   바로 오류 이유나 수정 방향 설명부터 시작해도 괜찮습니다.",
-    "   '학생의 질문은 ~에 대한 것입니다.'처럼 딱딱한 표현은 사용하지 마십시오.",
-    "2) 이어서 오류 이유나 구체적인 수정 방향, 또는 아주 짧은 예시(1~3줄)를 제시하십시오.",
-    "3) 마지막에는 학생이 스스로 더 생각해 볼 수 있도록 돕는 성장 질문이나,",
-    "   코드를 더 발전시킬 수 있는 방향을 1~2문장으로 제안하십시오.",
-    "   마지막 문장은 질문형이 아니어도 괜찮습니다.",
+     "응답 구성:",
+    "1) 첫 문장에서는 질문을 짧게 받아주거나, 바로 핵심 설명을 시작하십시오.",
+    "2) 이어지는 1~2문장으로 오류 이유나 수정 방향, 또는 생각해 볼 만한 아이디어를 간단히 설명하십시오.",
+    "3) 마지막 1문장에는 학생이 스스로 시도해 볼 수 있는 제안이나 방향을 넣되, 상황에 따라 생략해도됩니다.",
 
     "",  
     "코드 예시 제시 규칙:",
@@ -697,31 +721,56 @@ async function requestAiHintOnly({ apiHistory }) {
 }
 
 // ------------------ Google Form Logging ------------------
-async function logToGoogleForm({ studentId, studentName, code, prompt, aiAnswer, unit }) {
-  // ★ ENTRY_AI_ANSWER는 반드시 실제 entry 값으로 교체 필요
-  if (!ENTRY_AI_ANSWER || ENTRY_AI_ANSWER.includes("YOUR_")) {
-    console.warn("AI 답변 entry ID가 설정되지 않아 로그를 일부 생략합니다.");
-  }
+// ------------------ Google Form Logging ------------------
 
+// 질문 시 기록 (코드 + 프롬프트 + AI답변)
+async function logToGoogleForm({
+  studentId,
+  studentName,
+  code,
+  prompt,
+  aiAnswer,
+  unit,
+}) {
   const fd = new FormData();
-  fd.append(ENTRY_STUDENT_ID, studentId);
-  fd.append(ENTRY_STUDENT_NAME, studentName);
+
+  // 필수 항목
+  fd.append(ENTRY_STUDENT_ID, studentId || "");
+  fd.append(ENTRY_STUDENT_NAME, studentName || "");
+  fd.append(ENTRY_CODE, code || "");
+  fd.append(ENTRY_PROMPT, prompt || "");
+
+  // 선택 항목 (정의되어 있을 때만)
   if (ENTRY_UNIT) {
     fd.append(ENTRY_UNIT, unit || "");
   }
-  fd.append(ENTRY_CODE, code);
-  fd.append(ENTRY_PROMPT, prompt);
-  if (ENTRY_AI_ANSWER && !ENTRY_AI_ANSWER.includes("YOUR_")) {
-    fd.append(ENTRY_AI_ANSWER, aiAnswer);
+  if (ENTRY_AI_ANSWER) {
+    fd.append(ENTRY_AI_ANSWER, aiAnswer || "");
   }
 
-  await fetch(GOOGLE_FORM_ACTION_URL, {
-    method: "POST",
-    mode: "no-cors",
-    body: fd,
-  });
+  try {
+    console.log("[logToGoogleForm] send", {
+      studentId,
+      studentName,
+      unit,
+      hasCode: !!code,
+      hasPrompt: !!prompt,
+      hasAiAnswer: !!aiAnswer,
+    });
+
+    await fetch(GOOGLE_FORM_ACTION_URL, {
+      method: "POST",
+      mode: "no-cors",
+      body: fd,
+    });
+
+    console.log("[logToGoogleForm] done (no-cors opaque)");
+  } catch (err) {
+    console.error("[logToGoogleForm] 실패", err);
+  }
 }
 
+// 3줄 성찰 최종 제출
 async function logFinalReflectionToGoogleForm({
   studentId,
   studentName,
@@ -731,22 +780,35 @@ async function logFinalReflectionToGoogleForm({
 }) {
   const fd = new FormData();
 
-  fd.append(ENTRY_STUDENT_ID, studentId);
-  fd.append(ENTRY_STUDENT_NAME, studentName);
+  fd.append(ENTRY_STUDENT_ID, studentId || "");
+  fd.append(ENTRY_STUDENT_NAME, studentName || "");
+  fd.append(ENTRY_CODE, code || "");
   if (ENTRY_UNIT) {
     fd.append(ENTRY_UNIT, unit || "");
   }
-  fd.append(ENTRY_CODE, code || "");
-
   if (ENTRY_REFLECTION) {
     fd.append(ENTRY_REFLECTION, reflection || "");
   }
 
-  await fetch(GOOGLE_FORM_ACTION_URL, {
-    method: "POST",
-    mode: "no-cors",
-    body: fd,
-  });
+  try {
+    console.log("[logFinalReflectionToGoogleForm] send", {
+      studentId,
+      studentName,
+      unit,
+      hasReflection: !!reflection,
+    });
+
+    await fetch(GOOGLE_FORM_ACTION_URL, {
+      method: "POST",
+      mode: "no-cors",
+      body: fd,
+    });
+
+    console.log("[logFinalReflectionToGoogleForm] done (no-cors opaque)");
+  } catch (err) {
+    console.error("[logFinalReflectionToGoogleForm] 실패", err);
+    throw err;
+  }
 }
 
 // ------------------ Student localStorage ------------------
