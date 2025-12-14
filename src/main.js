@@ -266,21 +266,6 @@ function setupEditor() {
 print("Hello, Sehwa!")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 `;
 
   const state = EditorState.create({
@@ -357,7 +342,7 @@ function setupChat(student) {
     {
       role: "assistant",
       content:
-        "👨‍🚀 : 안녕하세요!😊 저는 여러분의 성장을 돕는 파이썬 도우미 소다예요~\n모르는 부분이 있으면 편하게 질문해주세요!",
+        "👨‍🚀: 안녕하세요! 저는 여러분의 성장을 돕는 파이썬 도우미 소다예요😊 \n모르는 부분이 있으면 편하게 질문해주세요!",
     },
   ];
   renderMessages(log, messages);
@@ -383,16 +368,31 @@ function setupChat(student) {
     
     // 프로그래밍 무관 질문 필터링
     if (isProgrammingUnrelatedQuestion(text)) {
-      const rolesMessage = "👨‍🚀: 코딩에 관련 질문을 부탁드려요!";
-      messages.push({ role: "assistant", content: rolesMessage });
+      const lower = text.toLowerCase();
+      const thanksPatterns = [
+        "감사", "고맙", "감사합니다", "고맙습니다", "thx", "thanks", "thank", "ㄱㅅ"
+      ];
+      const isThanks = thanksPatterns.some(p => lower.includes(p));
+
+      if (isThanks) {
+        // 감사 인사면 친절히 확인 메세지만 보내고 차단하지 않음
+        const ack = "도움이 되었다니 다행이에요! 필요하면 언제든 코드나 오류를 질문해 주세요 :)";
+        messages.push({ role: "assistant", content: ack });
+      } else {
+        // 그 외 무관 질문은 간단한 안내로 처리
+        const rolesMessage = "파이썬 관련 질문을 해 주세요! 다른 내용은 도와드릴 수 없어요 :(";
+        messages.push({ role: "assistant", content: rolesMessage });
+      }
+
       renderMessages(log, messages);
       saveChatHistory(student.studentId, messages);
       btn.disabled = false;
       return;
     }
+// ...existing code...
     
     // 로딩 메시지 표시
-    messages.push({ role: "assistant", content: "AI 맞춤 피드백 작성 중~", isLoading: true });
+    messages.push({ role: "assistant", content: "AI 맞춤 피드백 작성 중... ", isLoading: true });
     renderMessages(log, messages);
 
     // API 히스토리 항목은 학생 정보 + 단원 + 코드 + 질문을 함께 담음
@@ -409,11 +409,10 @@ function setupChat(student) {
       "요청:",
       "- 전체 코드를 제공하지 마세요.",
       "- 답변 전체 길이는 3~5문장으로 제한해주세요.",
-      "- 먼저 학생의 질문이 무엇에 대한 것인지 1문장으로 부드럽게 정리해주세요.",
-      "- 이어서 오류 이유나 수정 방향, 또는 생각해 볼 만한 아이디어를 1~3문장으로 제시해주세요.",
+      "- 오류 이유나 수정 방향, 또는 생각해 볼 만한 아이디어를 1~3문장으로 제시해주세요.",
       "- 학생이 명시적으로 '코드로 예시 보여줘'라고 요청하지 않는 한, 실제 파이썬 코드 줄을 쓰지 말고 자연어로 설명해주세요.",
       "- 코드 예시를 꼭 보여줘야 할 때는 한 줄짜리 패턴(예: 'for i in range(횟수): ...') 형태로만 제시해주세요.",
-      "- 마지막에는 학생이 스스로 확장해 볼 수 있는 간단한 제안이나 질문을 1문장 정도로 덧붙여주세요."
+      "- 필요시, 학생이 스스로 확장해 볼 수 있는 간단한 제안이나 질문을 1문장 정도로 덧붙여주세요."
 
     ].join("\n");
 

@@ -546,3 +546,39 @@ body{
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(236, 72, 153, 0.4);
 }
+
+/* CodeMirror editor host: 고정된 줄 수(약 20줄) 표시 */
+#cm-host {
+  height: 520px; /* 약 20줄 분량 (환경에 따라 약간 조정 가능) */
+  max-height: 70vh;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid #eef2ff;
+  background: #ffffff;
+  padding: 8px;
+  box-shadow: 0 6px 18px rgba(16,24,40,0.04);
+}
+
+/* CodeMirror 내부가 부모 높이를 따르도록 강제 */
+#cm-host .cm-editor {
+  height: 100% !important;
+  border-radius: 8px;
+  overflow: hidden;
+}
+#cm-host .cm-scroller {
+  max-height: 100% !important;
+  overflow: auto;
+  padding: 6px 8px 10px 8px;
+}
+
+/* 코드 폰트 및 크기 조정 */
+#cm-host .cm-content {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Noto Sans Mono", monospace;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+#cm-host .cm-line {
+  padding: 0 2px;
+}
+
