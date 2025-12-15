@@ -286,7 +286,7 @@ function renderLab(student) {
                 1) 오늘 내가 스스로 해결한 부분 :
                 <textarea id="reflect-1"
                           class="reflection-textarea"
-                          rows="2"
+                          rows="3"
                           placeholder="스스로 고민해서 고친 부분을 적어보세요."></textarea>
               </label>
 
@@ -294,7 +294,7 @@ function renderLab(student) {
                 2) AI 도움을 받아서 이해가 깊어진 부분 :
                 <textarea id="reflect-2"
                           class="reflection-textarea"
-                          rows="2"
+                          rows="3"
                           placeholder="AI 설명 덕분에 더 잘 이해하게 된 내용을 적어보세요."></textarea>
               </label>
 
@@ -302,7 +302,7 @@ function renderLab(student) {
                 3) 다음에 더 개선해보고 싶은 점 :
                 <textarea id="reflect-3"
                           class="reflection-textarea"
-                          rows="2"
+                          rows="3"
                           placeholder="아쉬웠던 점이나 다음에 도전해보고 싶은 것을 적어보세요."></textarea>
               </label>
             </div>
